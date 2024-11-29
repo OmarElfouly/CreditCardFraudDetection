@@ -50,9 +50,20 @@ const PredictionApp = () => {
     }, []);
 
     const handleInputChange = (name, value) => {
+        // Convert numeric fields to numbers before saving to state
+        const numericFields = [
+            'amt', 'lat', 'long', 'merch_lat', 'merch_long',
+            'city_pop', 'age', 'AreaLand', 'AreaWater',
+            'AnnualPay', 'EmployedNumber'
+        ];
+
+        const processedValue = numericFields.includes(name) && value !== ''
+            ? parseFloat(value)
+            : value;
+
         setInputs(prev => ({
             ...prev,
-            [name]: value
+            [name]: processedValue
         }));
     };
 
@@ -60,12 +71,28 @@ const PredictionApp = () => {
         setLoading(true);
         setError(null);
         try {
+            // Create a copy of inputs with proper numeric conversions
+            const processedInputs = {
+                ...inputs,
+                amt: parseFloat(inputs.amt) || 0,
+                lat: parseFloat(inputs.lat) || 0,
+                long: parseFloat(inputs.long) || 0,
+                merch_lat: parseFloat(inputs.merch_lat) || 0,
+                merch_long: parseFloat(inputs.merch_long) || 0,
+                city_pop: parseFloat(inputs.city_pop) || 0,
+                age: parseFloat(inputs.age) || 0,
+                AreaLand: parseFloat(inputs.AreaLand) || 0,
+                AreaWater: parseFloat(inputs.AreaWater) || 0,
+                AnnualPay: parseFloat(inputs.AnnualPay) || 0,
+                EmployedNumber: parseFloat(inputs.EmployedNumber) || 0
+            };
+
             const response = await fetch('http://localhost:5000/predict', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(inputs)
+                body: JSON.stringify(processedInputs)
             });
 
             const data = await response.json();

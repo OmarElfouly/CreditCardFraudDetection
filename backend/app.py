@@ -73,7 +73,8 @@ import pickle
 with open('best_fits.pkl', 'rb') as f:
     best_fits = pickle.load(f)
 
-    
+from scipy.stats import rayleigh, norm, lognorm, powerlaw, expon, gamma, cauchy, chi2, uniform
+
 def transform_data_to_distribution(data, best_fits):
     for col, (fit, params) in best_fits.items():
         print(f"Transforming column: {col} to distribution: {fit}")
@@ -138,47 +139,74 @@ def transform_data_to_distribution(data, best_fits):
 
 
 def preprocess_input(data):
-    # Convert input to DataFrame for easier processing
-    df = pd.DataFrame([data])
+    """Preprocess input data with complete feature set."""
+    print(f"Input data keys: {data.keys()}")
     
-    # Zip code to zip bucket (first three digits)
-    df['zip_bucket'] = df['zip'].astype(str).str[:3]
+    # Convert input to DataFrame
+    processed_data = {}
+    for key, value in data.items():
+        try:
+            if key in ['amt', 'lat', 'long', 'merch_lat', 'merch_long',
+                      'city_pop', 'age', 'AreaLand', 'AreaWater',
+                      'AnnualPay', 'EmployedNumber']:
+                processed_data[key] = float(value) if value != '' else 0.0
+            else:
+                processed_data[key] = value
+        except (TypeError, ValueError):
+            processed_data[key] = 0.0
+
+    df = pd.DataFrame([processed_data])
+    print(f"Initial DataFrame shape: {df.shape}")
+    
+    # ZIP code buckets
+    zip_bucket_columns = [f'zip_bucket_{bucket}' for bucket in ZIP_BUCKETS]
+    df[zip_bucket_columns] = 0
+    current_zip_bucket = str(data.get('zip', ''))[:3]
+    if current_zip_bucket in ZIP_BUCKETS:
+        df[f'zip_bucket_{current_zip_bucket}'] = 1
     df = df.drop('zip', axis=1)
+    print(f"After ZIP buckets ({len(zip_bucket_columns)} columns): {df.shape}")
     
-    # Calculate diff_long and diff_lat
-    df['diff_long'] = df['merch_long'] - df['long']
-    df['diff_lat'] = df['merch_lat'] - df['lat']
+    # Calculate geographic features
+    df['diff_long'] = df['merch_long'].astype(float) - df['long'].astype(float)
+    df['diff_lat'] = df['merch_lat'].astype(float) - df['lat'].astype(float)
     df = df.drop(['merch_long', 'merch_lat', 'long', 'lat'], axis=1)
     
-    # One-hot encode categorical variables
-    # Category
-    category_columns = [f'category_{cat}' for cat in CATEGORIES]
-    df[category_columns] = 0
-    df[f'category_{data["category"]}'] = 1
+    # Categorical encoding with verification
+    encoding_info = [
+        ('category', CATEGORIES, 'category_'),
+        ('gender', GENDERS, 'gender_'),
+        ('state', STATES, 'state_'),
+        ('job', JOBS, 'job_'),
+        ('merchant', MERCHANTS, 'merchant_fraud_')
+    ]
     
-    # Gender
-    gender_columns = [f'gender_{g}' for g in GENDERS]
-    df[gender_columns] = 0
-    df[f'gender_{data["gender"]}'] = 1
+    for field, values, prefix in encoding_info:
+        # Create columns
+        columns = [f"{prefix}{val}" for val in values]
+        df[columns] = 0
+        
+        # Set the appropriate value
+        if data.get(field):
+            col = f"{prefix}{data[field]}"
+            if col in df.columns:
+                df[col] = 1
+            else:
+                print(f"WARNING: Value '{data[field]}' not found in {field} list")
+        
+        print(f"After {field} encoding ({len(values)} columns): {df.shape}")
     
-    # State
-    state_columns = [f'state_{state}' for state in STATES]
-    df[state_columns] = 0
-    df[f'state_{data["state"]}'] = 1
-    
-    # Job
-    job_columns = [f'job_{job}' for job in JOBS]
-    df[job_columns] = 0
-    df[f'job_{data["job"]}'] = 1
-    
-    # Merchant (assuming merchant names are in the best_fits dictionary)
-    merchant_columns = [f'merchant_fraud_{m}' for m in MERCHANTS]
-    df[merchant_columns] = 0
-    df[f'merchant_fraud_{data["merchant"]}'] = 1
-    
-    # Transform numeric columns according to their distributions
+    # Transform numeric columns
     numeric_columns = ['amt', 'city_pop', 'unix_time', 'age', 'AreaLand', 
                       'AreaWater', 'AnnualPay', 'EmployedNumber', 'diff_lat', 'diff_long']
+    
+    # Ensure all numeric columns exist and are float
+    for col in numeric_columns:
+        if col not in df.columns:
+            print(f"WARNING: Missing numeric column {col}")
+            df[col] = 0.0
+        else:
+            df[col] = df[col].astype(float)
     
     df = transform_data_to_distribution(df, {k: v for k, v in best_fits.items() 
                                            if k in numeric_columns})
@@ -186,12 +214,118 @@ def preprocess_input(data):
     # Drop original categorical columns
     df = df.drop(['category', 'gender', 'state', 'job', 'merchant'], axis=1)
     
-    return df.values
+    # Verify final column count
+    expected_features = (
+        len(numeric_columns) +    # Numeric features
+        len(CATEGORIES) +        # Category one-hot
+        len(STATES) +           # State one-hot
+        len(GENDERS) +          # Gender one-hot
+        len(JOBS) +             # Job one-hot
+        len(MERCHANTS) +        # Merchant one-hot
+        len(ZIP_BUCKETS)        # ZIP bucket one-hot
+    )
+    
+    print("\nColumn count verification:")
+    print(f"Numeric columns: {len(numeric_columns)}")
+    print(f"Category columns: {len([c for c in df.columns if c.startswith('category_')])}")
+    print(f"Gender columns: {len([c for c in df.columns if c.startswith('gender_')])}")
+    print(f"State columns: {len([c for c in df.columns if c.startswith('state_')])}")
+    print(f"Job columns: {len([c for c in df.columns if c.startswith('job_')])}")
+    print(f"Merchant columns: {len([c for c in df.columns if c.startswith('merchant_fraud_')])}")
+    print(f"ZIP bucket columns: {len([c for c in df.columns if c.startswith('zip_bucket_')])}")
+    print(f"\nExpected total: {expected_features}")
+    print(f"Actual total: {df.shape[1]}")
+    
+    if expected_features != df.shape[1]:
+        print("\nWARNING: Column count mismatch!")
+        # Print sets of column prefixes to find duplicates
+        prefixes = {col.split('_')[0] for col in df.columns}
+        print(f"Column prefixes found: {prefixes}")
+        
+        # Check for duplicate columns
+        dupes = df.columns[df.columns.duplicated()].tolist()
+        if dupes:
+            print(f"Duplicate columns found: {dupes}")
+    
+    result = df.astype(np.float32).values
+    return result
 
-# Load the model
+def verify_model_loading():
+    """Verify the model is loaded correctly and has required attributes."""
+    try:
+        # Try to load the model
+        model = keras.models.load_model('bestModel_saveable.keras')
+        
+        # Check if it's a Sequential model
+        print(f"Model type: {type(model)}")
+        
+        # Print model summary
+        print("\nModel summary:")
+        model.summary()
+        
+        return True, "Model verified successfully"
+    except Exception as e:
+        return False, f"Model verification failed: {str(e)}"
+
 def load_model():
+    """Load the model and verify feature dimensions."""
     global model
+    
+    # First verify the model
+    success, message = verify_model_loading()
+    if not success:
+        print(f"ERROR: {message}")
+        raise RuntimeError(message)
+        
     model = keras.models.load_model('bestModel_saveable.keras')
+    
+    # Calculate expected number of features
+    numeric_cols = ['amt', 'city_pop', 'unix_time', 'age', 'AreaLand', 
+                   'AreaWater', 'AnnualPay', 'EmployedNumber', 'diff_lat', 'diff_long']
+    
+    expected_features = (
+        len(numeric_cols) +      # Numeric features
+        len(CATEGORIES) +        # Category one-hot
+        len(STATES) +           # State one-hot
+        len(GENDERS) +          # Gender one-hot
+        len(JOBS) +             # Job one-hot
+        len(MERCHANTS) +        # Merchant one-hot
+        len(ZIP_BUCKETS)        # ZIP bucket one-hot
+    )
+    
+    # Get actual model input shape
+    try:
+        # Try different ways to get the input shape
+        if hasattr(model, 'input_shape'):
+            model_features = model.input_shape[-1]
+        elif hasattr(model.layers[0], 'input_shape'):
+            model_features = model.layers[0].input_shape[-1]
+        elif hasattr(model, 'layers') and hasattr(model.layers[0], 'weights'):
+            model_features = model.layers[0].weights[0].shape[0]
+        else:
+            raise ValueError("Could not determine model input shape")
+            
+        print("\nModel Feature Verification:")
+        print(f"Model expects {model_features} features")
+        print(f"Current configuration provides {expected_features} features")
+        print("\nBreakdown:")
+        print(f"Numeric features: {len(numeric_cols)}")
+        print(f"Categories: {len(CATEGORIES)}")
+        print(f"States: {len(STATES)}")
+        print(f"Genders: {len(GENDERS)}")
+        print(f"Jobs: {len(JOBS)}")
+        print(f"Merchants: {len(MERCHANTS)}")
+        print(f"ZIP buckets: {len(ZIP_BUCKETS)}")
+        
+        if model_features != expected_features:
+            print("\nWARNING: Feature count mismatch!")
+            print(f"Model expects {model_features} features but current configuration will provide {expected_features} features")
+            print("This may cause prediction errors if the mismatch isn't resolved.")
+            
+    except Exception as e:
+        print(f"WARNING: Could not verify input dimensions: {str(e)}")
+        
+    
 
 # Initialize
 load_model()
@@ -233,14 +367,33 @@ def predict():
         data = request.json
         processed_input = preprocess_input(data)
         
+        # Get model information
+        print(f"\nModel information:")
+        # Get expected input shape from the first layer
+        expected_features = model.layers[0].input_shape[-1]  # Use input_shape property
+        print(f"Expected features: {expected_features}")
+        print(f"Processed input shape: {processed_input.shape}")
+        
+        # Verify input dimensions
+        actual_features = processed_input.shape[-1]
+        
+        if expected_features != actual_features:
+            raise ValueError(f"Input dimension mismatch. Model expects {expected_features} features but got {actual_features} features.\n" + 
+                           f"This likely means there's a mismatch in the number of categorical variables between training and prediction.")
+        
+        # Convert to tensor and predict
         with model_lock:
-            prediction = model.predict(processed_input)
+            tensor_input = tf.convert_to_tensor(processed_input, dtype=tf.float32)
+            prediction = model.predict(tensor_input, verbose=0)  # Add verbose=0 to reduce output noise
         
         return jsonify({
             'prediction': prediction.tolist()[0],
             'status': 'success'
         })
     except Exception as e:
+        print(f"Error during prediction: {str(e)}")
+        import traceback
+        traceback.print_exc()  # Print full stack trace
         return jsonify({
             'error': str(e),
             'status': 'error'
