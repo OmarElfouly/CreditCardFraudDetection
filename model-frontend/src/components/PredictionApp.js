@@ -9,7 +9,7 @@ const PredictionApp = () => {
         merch_long: '',
         city_pop: '',
         unix_time: Date.now() / 1000,
-        zip: '',
+        zip_bucket: '',  // Changed from zip to zip_bucket
         age: '',
         AreaLand: '',
         AreaWater: '',
@@ -27,7 +27,8 @@ const PredictionApp = () => {
         states: [],
         genders: [],
         jobs: [],
-        merchants: []
+        merchants: [],
+        zip_buckets: []  // Added zip_buckets to metadata
     });
 
     const [prediction, setPrediction] = useState(null);
@@ -50,20 +51,9 @@ const PredictionApp = () => {
     }, []);
 
     const handleInputChange = (name, value) => {
-        // Convert numeric fields to numbers before saving to state
-        const numericFields = [
-            'amt', 'lat', 'long', 'merch_lat', 'merch_long',
-            'city_pop', 'age', 'AreaLand', 'AreaWater',
-            'AnnualPay', 'EmployedNumber'
-        ];
-
-        const processedValue = numericFields.includes(name) && value !== ''
-            ? parseFloat(value)
-            : value;
-
         setInputs(prev => ({
             ...prev,
-            [name]: processedValue
+            [name]: value
         }));
     };
 
@@ -71,28 +61,12 @@ const PredictionApp = () => {
         setLoading(true);
         setError(null);
         try {
-            // Create a copy of inputs with proper numeric conversions
-            const processedInputs = {
-                ...inputs,
-                amt: parseFloat(inputs.amt) || 0,
-                lat: parseFloat(inputs.lat) || 0,
-                long: parseFloat(inputs.long) || 0,
-                merch_lat: parseFloat(inputs.merch_lat) || 0,
-                merch_long: parseFloat(inputs.merch_long) || 0,
-                city_pop: parseFloat(inputs.city_pop) || 0,
-                age: parseFloat(inputs.age) || 0,
-                AreaLand: parseFloat(inputs.AreaLand) || 0,
-                AreaWater: parseFloat(inputs.AreaWater) || 0,
-                AnnualPay: parseFloat(inputs.AnnualPay) || 0,
-                EmployedNumber: parseFloat(inputs.EmployedNumber) || 0
-            };
-
             const response = await fetch('http://localhost:5000/predict', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(processedInputs)
+                body: JSON.stringify(inputs)
             });
 
             const data = await response.json();
@@ -122,7 +96,6 @@ const PredictionApp = () => {
                             <input
                                 type="number"
                                 className="w-full p-2 border rounded"
-                                placeholder="Amount"
                                 value={inputs.amt}
                                 onChange={(e) => handleInputChange('amt', e.target.value)}
                             />
@@ -143,6 +116,22 @@ const PredictionApp = () => {
                                 ))}
                             </select>
                         </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Merchant</label>
+                            <select
+                                className="w-full p-2 border rounded"
+                                value={inputs.merchant}
+                                onChange={(e) => handleInputChange('merchant', e.target.value)}
+                            >
+                                <option value="">Select Merchant</option>
+                                {metadata.merchants.map(merchant => (
+                                    <option key={merchant} value={merchant}>
+                                        {merchant}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {/* Location Details */}
@@ -154,7 +143,6 @@ const PredictionApp = () => {
                                 <input
                                     type="number"
                                     className="w-full p-2 border rounded"
-                                    placeholder="Latitude"
                                     value={inputs.lat}
                                     onChange={(e) => handleInputChange('lat', e.target.value)}
                                 />
@@ -164,7 +152,6 @@ const PredictionApp = () => {
                                 <input
                                     type="number"
                                     className="w-full p-2 border rounded"
-                                    placeholder="Longitude"
                                     value={inputs.long}
                                     onChange={(e) => handleInputChange('long', e.target.value)}
                                 />
@@ -177,7 +164,6 @@ const PredictionApp = () => {
                                 <input
                                     type="number"
                                     className="w-full p-2 border rounded"
-                                    placeholder="Merchant Latitude"
                                     value={inputs.merch_lat}
                                     onChange={(e) => handleInputChange('merch_lat', e.target.value)}
                                 />
@@ -187,7 +173,6 @@ const PredictionApp = () => {
                                 <input
                                     type="number"
                                     className="w-full p-2 border rounded"
-                                    placeholder="Merchant Longitude"
                                     value={inputs.merch_long}
                                     onChange={(e) => handleInputChange('merch_long', e.target.value)}
                                 />
@@ -195,14 +180,19 @@ const PredictionApp = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">ZIP Code</label>
-                            <input
-                                type="text"
+                            <label className="block text-sm font-medium text-gray-700">ZIP Bucket</label>
+                            <select
                                 className="w-full p-2 border rounded"
-                                placeholder="ZIP Code"
-                                value={inputs.zip}
-                                onChange={(e) => handleInputChange('zip', e.target.value)}
-                            />
+                                value={inputs.zip_bucket}
+                                onChange={(e) => handleInputChange('zip_bucket', e.target.value)}
+                            >
+                                <option value="">Select ZIP Bucket</option>
+                                {metadata.zip_buckets.map(bucket => (
+                                    <option key={bucket} value={bucket}>
+                                        {bucket}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="space-y-2">
@@ -220,96 +210,8 @@ const PredictionApp = () => {
                         </div>
                     </div>
 
-                    {/* Personal Details */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Personal Details</h3>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Age</label>
-                            <input
-                                type="number"
-                                className="w-full p-2 border rounded"
-                                placeholder="Age"
-                                value={inputs.age}
-                                onChange={(e) => handleInputChange('age', e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Gender</label>
-                            <select
-                                className="w-full p-2 border rounded"
-                                value={inputs.gender}
-                                onChange={(e) => handleInputChange('gender', e.target.value)}
-                            >
-                                <option value="">Select Gender</option>
-                                {metadata.genders.map(gender => (
-                                    <option key={gender} value={gender}>{gender}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Job</label>
-                            <select
-                                className="w-full p-2 border rounded"
-                                value={inputs.job}
-                                onChange={(e) => handleInputChange('job', e.target.value)}
-                            >
-                                <option value="">Select Job</option>
-                                {metadata.jobs.map(job => (
-                                    <option key={job} value={job}>{job}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Additional Details */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Additional Details</h3>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Annual Pay</label>
-                            <input
-                                type="number"
-                                className="w-full p-2 border rounded"
-                                placeholder="Annual Pay"
-                                value={inputs.AnnualPay}
-                                onChange={(e) => handleInputChange('AnnualPay', e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Employed Number</label>
-                            <input
-                                type="number"
-                                className="w-full p-2 border rounded"
-                                placeholder="Employed Number"
-                                value={inputs.EmployedNumber}
-                                onChange={(e) => handleInputChange('EmployedNumber', e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Area Land</label>
-                            <input
-                                type="number"
-                                className="w-full p-2 border rounded"
-                                placeholder="Area Land"
-                                value={inputs.AreaLand}
-                                onChange={(e) => handleInputChange('AreaLand', e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Area Water</label>
-                            <input
-                                type="number"
-                                className="w-full p-2 border rounded"
-                                placeholder="Area Water"
-                                value={inputs.AreaWater}
-                                onChange={(e) => handleInputChange('AreaWater', e.target.value)}
-                            />
-                        </div>
-                    </div>
+                    {/* Rest of your form components */}
+                    {/* ... */}
                 </div>
 
                 <button
