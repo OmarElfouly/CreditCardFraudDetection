@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 
 const PredictionApp = () => {
     const [inputs, setInputs] = useState({
@@ -11,7 +8,7 @@ const PredictionApp = () => {
         merch_lat: '',
         merch_long: '',
         city_pop: '',
-        unix_time: '',
+        unix_time: Date.now() / 1000,
         zip: '',
         age: '',
         AreaLand: '',
@@ -85,170 +82,206 @@ const PredictionApp = () => {
     };
 
     return (
-        <Card className="w-full max-w-4xl mx-auto">
-            <CardHeader>
-                <CardTitle>Fraud Detection Prediction</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+        <div className="max-w-4xl mx-auto p-4">
+            <div className="bg-white rounded-lg shadow p-6">
+                <h1 className="text-2xl font-bold mb-6">Fraud Detection Prediction</h1>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Transaction Details */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Transaction Details</h3>
-                        <Input
-                            type="number"
-                            placeholder="Amount"
-                            value={inputs.amt}
-                            onChange={(e) => handleInputChange('amt', e.target.value)}
-                        />
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Amount</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                placeholder="Amount"
+                                value={inputs.amt}
+                                onChange={(e) => handleInputChange('amt', e.target.value)}
+                            />
+                        </div>
 
-                        <Select
-                            value={inputs.category}
-                            onValueChange={(value) => handleInputChange('category', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Category" />
-                            </SelectTrigger>
-                            <SelectContent>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Category</label>
+                            <select
+                                className="w-full p-2 border rounded"
+                                value={inputs.category}
+                                onChange={(e) => handleInputChange('category', e.target.value)}
+                            >
+                                <option value="">Select Category</option>
                                 {metadata.categories.map(cat => (
-                                    <SelectItem key={cat} value={cat}>
+                                    <option key={cat} value={cat}>
                                         {cat.replace('_', ' ').toUpperCase()}
-                                    </SelectItem>
+                                    </option>
                                 ))}
-                            </SelectContent>
-                        </Select>
-
-                        <Select
-                            value={inputs.merchant}
-                            onValueChange={(value) => handleInputChange('merchant', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Merchant" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {metadata.merchants.map(merchant => (
-                                    <SelectItem key={merchant} value={merchant}>
-                                        {merchant}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            </select>
+                        </div>
                     </div>
 
                     {/* Location Details */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Location Details</h3>
                         <div className="grid grid-cols-2 gap-2">
-                            <Input
-                                type="number"
-                                placeholder="Latitude"
-                                value={inputs.lat}
-                                onChange={(e) => handleInputChange('lat', e.target.value)}
-                            />
-                            <Input
-                                type="number"
-                                placeholder="Longitude"
-                                value={inputs.long}
-                                onChange={(e) => handleInputChange('long', e.target.value)}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Your Latitude</label>
+                                <input
+                                    type="number"
+                                    className="w-full p-2 border rounded"
+                                    placeholder="Latitude"
+                                    value={inputs.lat}
+                                    onChange={(e) => handleInputChange('lat', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Your Longitude</label>
+                                <input
+                                    type="number"
+                                    className="w-full p-2 border rounded"
+                                    placeholder="Longitude"
+                                    value={inputs.long}
+                                    onChange={(e) => handleInputChange('long', e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Merchant Latitude</label>
+                                <input
+                                    type="number"
+                                    className="w-full p-2 border rounded"
+                                    placeholder="Merchant Latitude"
+                                    value={inputs.merch_lat}
+                                    onChange={(e) => handleInputChange('merch_lat', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Merchant Longitude</label>
+                                <input
+                                    type="number"
+                                    className="w-full p-2 border rounded"
+                                    placeholder="Merchant Longitude"
+                                    value={inputs.merch_long}
+                                    onChange={(e) => handleInputChange('merch_long', e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">ZIP Code</label>
+                            <input
+                                type="text"
+                                className="w-full p-2 border rounded"
+                                placeholder="ZIP Code"
+                                value={inputs.zip}
+                                onChange={(e) => handleInputChange('zip', e.target.value)}
                             />
                         </div>
 
-                        <Input
-                            type="text"
-                            placeholder="ZIP Code"
-                            value={inputs.zip}
-                            onChange={(e) => handleInputChange('zip', e.target.value)}
-                        />
-
-                        <Select
-                            value={inputs.state}
-                            onValueChange={(value) => handleInputChange('state', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="State" />
-                            </SelectTrigger>
-                            <SelectContent>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">State</label>
+                            <select
+                                className="w-full p-2 border rounded"
+                                value={inputs.state}
+                                onChange={(e) => handleInputChange('state', e.target.value)}
+                            >
+                                <option value="">Select State</option>
                                 {metadata.states.map(state => (
-                                    <SelectItem key={state} value={state}>
-                                        {state}
-                                    </SelectItem>
+                                    <option key={state} value={state}>{state}</option>
                                 ))}
-                            </SelectContent>
-                        </Select>
+                            </select>
+                        </div>
                     </div>
 
                     {/* Personal Details */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Personal Details</h3>
-                        <Input
-                            type="number"
-                            placeholder="Age"
-                            value={inputs.age}
-                            onChange={(e) => handleInputChange('age', e.target.value)}
-                        />
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Age</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                placeholder="Age"
+                                value={inputs.age}
+                                onChange={(e) => handleInputChange('age', e.target.value)}
+                            />
+                        </div>
 
-                        <Select
-                            value={inputs.gender}
-                            onValueChange={(value) => handleInputChange('gender', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Gender" />
-                            </SelectTrigger>
-                            <SelectContent>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Gender</label>
+                            <select
+                                className="w-full p-2 border rounded"
+                                value={inputs.gender}
+                                onChange={(e) => handleInputChange('gender', e.target.value)}
+                            >
+                                <option value="">Select Gender</option>
                                 {metadata.genders.map(gender => (
-                                    <SelectItem key={gender} value={gender}>
-                                        {gender}
-                                    </SelectItem>
+                                    <option key={gender} value={gender}>{gender}</option>
                                 ))}
-                            </SelectContent>
-                        </Select>
+                            </select>
+                        </div>
 
-                        <Select
-                            value={inputs.job}
-                            onValueChange={(value) => handleInputChange('job', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Job" />
-                            </SelectTrigger>
-                            <SelectContent>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Job</label>
+                            <select
+                                className="w-full p-2 border rounded"
+                                value={inputs.job}
+                                onChange={(e) => handleInputChange('job', e.target.value)}
+                            >
+                                <option value="">Select Job</option>
                                 {metadata.jobs.map(job => (
-                                    <SelectItem key={job} value={job}>
-                                        {job}
-                                    </SelectItem>
+                                    <option key={job} value={job}>{job}</option>
                                 ))}
-                            </SelectContent>
-                        </Select>
+                            </select>
+                        </div>
                     </div>
 
                     {/* Additional Details */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Additional Details</h3>
-                        <Input
-                            type="number"
-                            placeholder="Annual Pay"
-                            value={inputs.AnnualPay}
-                            onChange={(e) => handleInputChange('AnnualPay', e.target.value)}
-                        />
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Annual Pay</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                placeholder="Annual Pay"
+                                value={inputs.AnnualPay}
+                                onChange={(e) => handleInputChange('AnnualPay', e.target.value)}
+                            />
+                        </div>
 
-                        <Input
-                            type="number"
-                            placeholder="Employed Number"
-                            value={inputs.EmployedNumber}
-                            onChange={(e) => handleInputChange('EmployedNumber', e.target.value)}
-                        />
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Employed Number</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                placeholder="Employed Number"
+                                value={inputs.EmployedNumber}
+                                onChange={(e) => handleInputChange('EmployedNumber', e.target.value)}
+                            />
+                        </div>
 
-                        <Input
-                            type="number"
-                            placeholder="Area Land"
-                            value={inputs.AreaLand}
-                            onChange={(e) => handleInputChange('AreaLand', e.target.value)}
-                        />
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Area Land</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                placeholder="Area Land"
+                                value={inputs.AreaLand}
+                                onChange={(e) => handleInputChange('AreaLand', e.target.value)}
+                            />
+                        </div>
 
-                        <Input
-                            type="number"
-                            placeholder="Area Water"
-                            value={inputs.AreaWater}
-                            onChange={(e) => handleInputChange('AreaWater', e.target.value)}
-                        />
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Area Water</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                placeholder="Area Water"
+                                value={inputs.AreaWater}
+                                onChange={(e) => handleInputChange('AreaWater', e.target.value)}
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -272,8 +305,8 @@ const PredictionApp = () => {
                         {error}
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 };
 
