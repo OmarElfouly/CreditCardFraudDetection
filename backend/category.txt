@@ -1,0 +1,14 @@
+misc_net
+entertainment
+gas_transport
+grocery_net
+misc_pos
+grocery_pos
+shopping_net
+shopping_pos
+food_dining
+personal_care
+health_fitness
+travel
+kids_pets
+home
