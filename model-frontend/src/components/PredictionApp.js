@@ -7,9 +7,10 @@ const PredictionApp = () => {
         long: '',
         merch_lat: '',
         merch_long: '',
-        city_pop: 3495, // TODO: Remove this hard-coded value
-        unix_time: 1325376018, // TODO: Remove this hard-coded value
-        zip_bucket: '',  // Changed from zip to zip_bucket
+        city_pop: '',
+        unix_time: Math.floor(Date.now() / 1000),
+        zipcode: '',  // For internal use only
+        zip_bucket: '',
         age: '',
         AreaLand: '',
         AreaWater: '',
@@ -28,45 +29,99 @@ const PredictionApp = () => {
         genders: [],
         jobs: [],
         merchants: [],
-        zip_buckets: []  // Added zip_buckets to metadata
+        zip_buckets: []
     });
+
+    const [areaData, setAreaData] = useState([]);
+    const [employmentData, setEmploymentData] = useState([]);
 
     const [prediction, setPrediction] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Fetch metadata on component mount
-        const fetchMetadata = async () => {
+        const fetchData = async () => {
             try {
                 const response = await fetch('http://localhost:5000/get_metadata');
                 const data = await response.json();
                 setMetadata(data);
+
+                const areaContent = await window.fs.readFile('area_data.json', { encoding: 'utf8' });
+                const areaJSON = JSON.parse(areaContent);
+                setAreaData(areaJSON);
+
+                const employmentContent = await window.fs.readFile('employment_data.json', { encoding: 'utf8' });
+                const employmentJSON = JSON.parse(employmentContent);
+                setEmploymentData(employmentJSON);
             } catch (err) {
-                setError('Failed to fetch form options: ' + err.message);
+                setError('Failed to fetch data: ' + err.message);
             }
         };
 
-        fetchMetadata();
+        fetchData();
     }, []);
 
+    const determineZipBucket = (zipcode) => {
+        const zip = parseInt(zipcode);
+        if (!zip) return '';
+
+        for (const bucket of metadata.zip_buckets) {
+            const [start, end] = bucket.split('-').map(num => parseInt(num));
+            if (zip >= start && zip <= end) {
+                return bucket;
+            }
+        }
+        return '';
+    };
+
+    const handleZipCodeChange = (zipcode) => {
+        const newInputs = { ...inputs, zipcode };
+
+        // Find zip bucket
+        const zip_bucket = determineZipBucket(zipcode);
+        newInputs.zip_bucket = zip_bucket;
+
+        // Find area data - skip header row by checking length
+        const areaInfo = areaData.find(row => row.length === 4 && row[3] === zipcode);
+        if (areaInfo) {
+            newInputs.AreaLand = areaInfo[1];
+            newInputs.AreaWater = areaInfo[2];
+        }
+
+        // Find employment data - skip header row by checking length
+        const employmentInfo = employmentData.find(row => row.length === 3 && row[2] === zipcode);
+        if (employmentInfo) {
+            newInputs.AnnualPay = employmentInfo[0];
+            newInputs.EmployedNumber = employmentInfo[1];
+        }
+
+        setInputs(newInputs);
+    };
+
     const handleInputChange = (name, value) => {
-        setInputs(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        if (name === 'zipcode') {
+            handleZipCodeChange(value);
+        } else {
+            setInputs(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
     };
 
     const handlePredict = async () => {
         setLoading(true);
         setError(null);
         try {
+            // Create a copy of inputs without the zipcode field
+            const { zipcode, ...predictionData } = inputs;
+
             const response = await fetch('http://localhost:5000/predict', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(inputs)
+                body: JSON.stringify(predictionData)
             });
 
             const data = await response.json();
@@ -91,6 +146,7 @@ const PredictionApp = () => {
                     {/* Transaction Details */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Transaction Details</h3>
+
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">Amount</label>
                             <input
@@ -101,6 +157,44 @@ const PredictionApp = () => {
                             />
                         </div>
 
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">ZIP Code</label>
+                            <input
+                                type="text"
+                                className="w-full p-2 border rounded"
+                                value={inputs.zipcode}
+                                onChange={(e) => handleInputChange('zipcode', e.target.value)}
+                                pattern="[0-9]{5}"
+                                maxLength="5"
+                                placeholder="Enter 5-digit ZIP code"
+                            />
+                            {inputs.zip_bucket && (
+                                <span className="text-xs text-gray-500">ZIP Bucket: {inputs.zip_bucket}</span>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">City Population</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                value={inputs.city_pop}
+                                onChange={(e) => handleInputChange('city_pop', e.target.value)}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Transaction Time (Unix)</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 border rounded"
+                                value={inputs.unix_time}
+                                onChange={(e) => handleInputChange('unix_time', e.target.value)}
+                            />
+                            <span className="text-xs text-gray-500">Current Unix timestamp: {Math.floor(Date.now() / 1000)}</span>
+                        </div>
+
+                        {/* Category and Merchant dropdowns */}
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">Category</label>
                             <select
@@ -180,22 +274,6 @@ const PredictionApp = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">ZIP Bucket</label>
-                            <select
-                                className="w-full p-2 border rounded"
-                                value={inputs.zip_bucket}
-                                onChange={(e) => handleInputChange('zip_bucket', e.target.value)}
-                            >
-                                <option value="">Select ZIP Bucket</option>
-                                {metadata.zip_buckets.map(bucket => (
-                                    <option key={bucket} value={bucket}>
-                                        {bucket}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">State</label>
                             <select
                                 className="w-full p-2 border rounded"
@@ -253,17 +331,18 @@ const PredictionApp = () => {
                         </div>
                     </div>
 
-                    {/* Additional Details */}
+                    {/* Demographics Section */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Additional Details</h3>
+                        <h3 className="text-lg font-semibold">Demographics</h3>
+
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">Annual Pay</label>
                             <input
                                 type="number"
                                 className="w-full p-2 border rounded"
-                                placeholder="Annual Pay"
                                 value={inputs.AnnualPay}
                                 onChange={(e) => handleInputChange('AnnualPay', e.target.value)}
+                                placeholder="Annual Pay"
                             />
                         </div>
 
@@ -272,9 +351,9 @@ const PredictionApp = () => {
                             <input
                                 type="number"
                                 className="w-full p-2 border rounded"
-                                placeholder="Employed Number"
                                 value={inputs.EmployedNumber}
                                 onChange={(e) => handleInputChange('EmployedNumber', e.target.value)}
+                                placeholder="Employed Number"
                             />
                         </div>
 
@@ -283,9 +362,9 @@ const PredictionApp = () => {
                             <input
                                 type="number"
                                 className="w-full p-2 border rounded"
-                                placeholder="Area Land"
                                 value={inputs.AreaLand}
                                 onChange={(e) => handleInputChange('AreaLand', e.target.value)}
+                                placeholder="Area Land"
                             />
                         </div>
 
@@ -294,13 +373,12 @@ const PredictionApp = () => {
                             <input
                                 type="number"
                                 className="w-full p-2 border rounded"
-                                placeholder="Area Water"
                                 value={inputs.AreaWater}
                                 onChange={(e) => handleInputChange('AreaWater', e.target.value)}
+                                placeholder="Area Water"
                             />
                         </div>
                     </div>
-
                 </div>
 
                 <button

@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 import numpy as np
 from flask import Flask, request, jsonify
@@ -390,8 +391,22 @@ retraining_thread.start()
 def predict():
     try:
         data = request.json
+
+        print("\n=== Raw Input Data ===")
+        print(json.dumps(data, indent=2))
+
         processed_input = preprocess_input(data)
         
+        print("\n=== Processed Input Data ===")
+        print("Shape:", processed_input.shape)
+        print("\nFirst few columns:")
+        print(processed_input.iloc[:, :10])  # Print first 10 columns
+        print("\nNumeric columns:")
+        numeric_cols = processed_input.select_dtypes(include=[np.number]).columns
+        print(numeric_cols.tolist())
+        print("\nSample of numeric values:")
+        print(processed_input[numeric_cols].head())
+
         # Get model information
         # print(f"\nModel information:")
         # # Get expected input shape from the first layer
