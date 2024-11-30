@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-
+//import Axios from "axios"; // Import Axios or use Fetch.
+import area_data from '../area_data.json';
+import employment_data from '../employment_data.json';
 const PredictionApp = () => {
     const [inputs, setInputs] = useState({
         amt: '',
@@ -39,6 +41,9 @@ const PredictionApp = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+
+    const [validBucket, setValidBucket] = useState(false);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -46,13 +51,18 @@ const PredictionApp = () => {
                 const data = await response.json();
                 setMetadata(data);
 
-                const areaContent = await window.fs.readFile('area_data.json', { encoding: 'utf8' });
-                const areaJSON = JSON.parse(areaContent);
-                setAreaData(areaJSON);
+                // const areaContent = await fs.readFile('area_data.json', { encoding: 'utf8' });
+                setAreaData(area_data);
+                //let areaContent = area_data;
+                //console.log('Area content:', areaContent);
+                //const areaJSON = JSON.parse(areaContent);
+                //setAreaData(areaJSON);    
 
-                const employmentContent = await window.fs.readFile('employment_data.json', { encoding: 'utf8' });
-                const employmentJSON = JSON.parse(employmentContent);
-                setEmploymentData(employmentJSON);
+                //const employmentContent = await fs.readFile('employment_data.json', { encoding: 'utf8' });
+                setEmploymentData(employment_data);
+                //let employmentContent = employment_data;
+                //const employmentJSON = JSON.parse(employmentContent);
+                //setEmploymentData(employmentJSON);
             } catch (err) {
                 setError('Failed to fetch data: ' + err.message);
             }
@@ -63,30 +73,45 @@ const PredictionApp = () => {
 
     const determineZipBucket = (zipcode) => {
         const zip = parseInt(zipcode);
+        //console.log('Zip:', zip);
         if (!zip) return '';
 
-        for (const bucket of metadata.zip_buckets) {
-            const [start, end] = bucket.split('-').map(num => parseInt(num));
-            if (zip >= start && zip <= end) {
-                return bucket;
-            }
+        // for (const bucket of metadata.zip_buckets) {
+        //     const [start, end] = bucket.split('-').map(num => parseInt(num));
+        //     if (zip >= start && zip <= end) {
+        //         console.log('Bucket:', bucket);
+        //         return bucket;
+        //     }
+        // }
+        // first 3 digits of zip code is the bucket so attempt to find that in buckets, if not found show an error message
+        let bucketAttempt = zip.toString().substring(0, 3);
+        if (metadata.zip_buckets.includes(bucketAttempt)) {
+            setValidBucket(true);
+            return bucketAttempt;
+        } else {
+            return 'Zip code not found in bucket list';
         }
-        return '';
     };
 
     const handleZipCodeChange = (zipcode) => {
+        setValidBucket(false);
         const newInputs = { ...inputs, zipcode };
 
         // Find zip bucket
         const zip_bucket = determineZipBucket(zipcode);
         newInputs.zip_bucket = zip_bucket;
 
+        //console.log('Zip bucket:', zip_bucket);
+
         // Find area data - skip header row by checking length
-        const areaInfo = areaData.find(row => row.length === 4 && row[3] === zipcode);
+        console.log('Area data:', areaData);
+        const areaInfo = areaData.find(row => row[3] === zipcode);
         if (areaInfo) {
             newInputs.AreaLand = areaInfo[1];
             newInputs.AreaWater = areaInfo[2];
         }
+        console.log('Area water:', newInputs.AreaWater);
+        console.log('Area land:', newInputs.AreaLand);
 
         // Find employment data - skip header row by checking length
         const employmentInfo = employmentData.find(row => row.length === 3 && row[2] === zipcode);
@@ -99,6 +124,7 @@ const PredictionApp = () => {
     };
 
     const handleInputChange = (name, value) => {
+        console.log(name, value);
         if (name === 'zipcode') {
             handleZipCodeChange(value);
         } else {
@@ -384,7 +410,7 @@ const PredictionApp = () => {
                 <button
                     className="w-full mt-6 bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-400"
                     onClick={handlePredict}
-                    disabled={loading}
+                    disabled={loading || !validBucket}
                 >
                     {loading ? 'Predicting...' : 'Predict'}
                 </button>
@@ -392,7 +418,7 @@ const PredictionApp = () => {
                 {prediction !== null && (
                     <div className="mt-4 p-4 bg-green-50 rounded">
                         <h3 className="font-medium">Prediction Result:</h3>
-                        <p>Fraud Probability: {(prediction * 100).toFixed(2)}%</p>
+                        <p>Fraud: {(prediction)}</p>
                     </div>
                 )}
 
