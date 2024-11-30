@@ -306,9 +306,6 @@ def verify_feature_counts():
     if extra_in_file:
         print(f"Extra ZIP buckets in file: {sorted(extra_in_file)}")
 
-# Call the verification function
-verify_feature_counts()
-
 def verify_model_loading():
     """Verify the model is loaded correctly and has required attributes."""
     try:
